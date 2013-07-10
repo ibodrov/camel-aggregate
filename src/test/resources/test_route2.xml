@@ -1,0 +1,45 @@
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="
+             http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd">
+
+    <bean id="strat" class="jet.scdp.router.camel.processor.TestStrategy"/>
+
+    <bean id="serviceA" class="jet.scdp.router.camel.processor.TestService"/>
+    <bean id="serviceB" class="jet.scdp.router.camel.processor.TestService"/>
+    <bean id="serviceC" class="jet.scdp.router.camel.processor.TestService"/>
+
+    <camelContext xmlns="http://camel.apache.org/schema/blueprint"
+                  xsi:schemaLocation="http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd">
+
+        <route>
+            <from uri="direct:start"/>
+            <to uri="log:INPUT"/>
+
+            <split>
+                <tokenize token=","/>
+                <to uri="seda:phase-two"/>
+            </split>
+        </route>
+
+        <route>
+            <from uri="seda:phase-two"/>
+
+            <to uri="log:SPLITTED"/>
+
+            <recipientList>
+                <simple>bean:service${body}</simple>
+            </recipientList>
+
+            <aggregate strategyRef="strat">
+                <correlationExpression>
+                    <simple>header.txId</simple>
+                </correlationExpression>
+                <completionSize>
+                    <simple>header.CamelSplitSize</simple>
+                </completionSize>
+                <to uri="log:RESULT"/>
+            </aggregate>
+        </route>
+    </camelContext>
+</blueprint>
